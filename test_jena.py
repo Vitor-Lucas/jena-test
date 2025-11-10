@@ -65,20 +65,26 @@ def main():
         return
 
     # Inicializa as classes
-    loader = TurtleLoader(fuseki_url="http://localhost:3030", dataset="ds")
-    sparql = SparqlQuery(fuseki_url="http://localhost:3030", dataset="ds")
+    FUSEKI_USER = "admin"
+    FUSEKI_PASS = "admin123"
+    dataset = 'ds'
+    loader = TurtleLoader(fuseki_url="http://localhost:3030", dataset=dataset,
+                          auth_user=FUSEKI_USER, auth_pass=FUSEKI_PASS)
+
+    sparql = SparqlQuery(fuseki_url="http://localhost:3030", dataset=dataset,
+                         auth_user=FUSEKI_USER, auth_pass=FUSEKI_PASS)
 
     # ========================================
     # 1. LIMPAR DATASET (começar do zero)
     # ========================================
-    print("\n1. Limpando dataset...")
-    result = loader.clear_dataset()
-    print_result(result, "1. Resultado da Limpeza")
-
-    if not result['success']:
-        print("\n⚠️  ATENÇÃO: Falha ao limpar dataset. Verifique se o dataset 'ds' existe no Fuseki.")
-        print("   Acesse http://localhost:3030 e crie um dataset chamado 'ds' se necessário.")
-        return
+    # print("\n1. Limpando dataset...")
+    # result = loader.clear_dataset()
+    # print_result(result, "1. Resultado da Limpeza")
+    #
+    # if not result['success']:
+    #     print("\n⚠️  ATENÇÃO: Falha ao limpar dataset. Verifique se o dataset 'ds' existe no Fuseki.")
+    #     print("   Acesse http://localhost:3030 e crie um dataset chamado 'ds' se necessário.")
+    #     return
 
     # ========================================
     # 2. CARREGAR DADOS TURTLE

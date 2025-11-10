@@ -1,13 +1,16 @@
 import requests
 from typing import List, Dict, Any, Optional
 
+from requests.auth import HTTPBasicAuth
+
 
 class SparqlQuery:
     """
     Classe para executar consultas SPARQL no Apache Jena Fuseki
     """
 
-    def __init__(self, fuseki_url: str = "http://localhost:3030", dataset: str = "ds"):
+    def __init__(self, fuseki_url: str = "http://localhost:3030", dataset: str = "ds",
+                 auth_user: str = "admin", auth_pass: str = "admin123"):
         """
         Inicializa o executor de queries.
 
@@ -19,6 +22,8 @@ class SparqlQuery:
         self.dataset = dataset
         self.query_endpoint = f"{self.fuseki_url}/{dataset}/query"
         self.update_endpoint = f"{self.fuseki_url}/{dataset}/update"
+        self.auth = HTTPBasicAuth(auth_user, auth_pass) if auth_user and auth_pass else None
+
 
     def select(self, query: str) -> Dict[str, Any]:
         """
@@ -184,7 +189,8 @@ class SparqlQuery:
             response = requests.post(
                 self.update_endpoint,
                 data=query.encode('utf-8'),
-                headers=headers
+                headers=headers,
+                auth=self.auth
             )
 
             if response.status_code in [200, 204]:

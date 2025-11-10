@@ -1,13 +1,14 @@
 import requests
 from typing import Optional
-
+from requests.auth import HTTPBasicAuth
 
 class TurtleLoader:
     """
     Classe para carregar arquivos Turtle (.ttl) no Apache Jena Fuseki
     """
 
-    def __init__(self, fuseki_url: str = "http://localhost:3030", dataset: str = "ds"):
+    def __init__(self, fuseki_url: str = "http://localhost:3030", dataset: str = "ds",
+                 auth_user: str = "admin", auth_pass: str = "admin123"):
         """
         Inicializa o loader com a URL do Fuseki e o dataset.
 
@@ -18,6 +19,9 @@ class TurtleLoader:
         self.fuseki_url = fuseki_url.rstrip('/')
         self.dataset = dataset
         self.data_endpoint = f"{self.fuseki_url}/{dataset}/data"
+        self.auth = HTTPBasicAuth(auth_user, auth_pass) if auth_user and auth_pass else None
+        # print(self.auth.username)
+        # print(self.auth.password)
 
     def load_from_file(self, file_path: str, graph_uri: Optional[str] = None) -> dict:
         """
@@ -72,7 +76,8 @@ class TurtleLoader:
                 self.data_endpoint,
                 data=ttl_content.encode('utf-8'),
                 headers=headers,
-                params=params
+                params=params,
+                auth=self.auth
             )
 
             if response.status_code in [200, 201, 204]:
@@ -120,7 +125,8 @@ class TurtleLoader:
         try:
             response = requests.delete(
                 self.data_endpoint,
-                params=params
+                params=params,
+                auth=self.auth
             )
 
             if response.status_code in [200, 204]:
@@ -129,6 +135,8 @@ class TurtleLoader:
                     "message": "Dataset limpo com sucesso"
                 }
             else:
+                # print('Caiu aqui')
+                # print(response.text)
                 return {
                     "success": False,
                     "message": f"Erro ao limpar dataset: {response.text}",
