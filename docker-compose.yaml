@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  fuseki:
+    image: stain/jena-fuseki:latest
+    container_name: jena-fuseki
+    ports:
+      - "3030:3030"
+    environment:
+      # Configurações administrativas
+      ADMIN_PASSWORD: admin123
+      # Java options (opcional - ajuste conforme necessário)
+      JVM_ARGS: "-Xmx2g"
+    volumes:
+      # Persistência dos dados
+      - ./fuseki-data:/fuseki
+      # Opcional: configurações customizadas
+      - ./fuseki-config:/fuseki-config
+    restart: unless-stopped
+    networks:
+      - jena-network
+
+networks:
+  jena-network:
+    driver: bridge
+
+# Para criar os volumes locais antes de rodar:
+# mkdir -p fuseki-data fuseki-config
