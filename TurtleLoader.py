@@ -128,7 +128,7 @@ class TurtleLoader:
 
     def clear_dataset(self, graph_uri: Optional[str] = None) -> dict:
         """
-        Limpa todos os dados do dataset ou de um grafo específico.
+        Limpa todos os dados do dataset ou de um grafo específico usando SPARQL UPDATE.
 
         Args:
             graph_uri: URI do grafo para limpar (se None, limpa o grafo padrão)
@@ -136,25 +136,50 @@ class TurtleLoader:
         Returns:
             dict com status da operação
         """
-        params = {}
+        # Endpoint de update (não de data)
+        update_endpoint = f"{self.fuseki_url}/{self.dataset}/update"
+
+        # Construir a query SPARQL DELETE apropriada
         if graph_uri:
-            params['graph'] = graph_uri
+            # Limpar um grafo nomeado específico
+            sparql_update = f"""
+            DELETE WHERE {{
+                GRAPH <{graph_uri}> {{
+                    ?s ?p ?o .
+                }}
+            }}
+            """
+        else:
+            # Limpar o grafo padrão (default graph)
+            sparql_update = """
+            DELETE WHERE {
+                ?s ?p ?o .
+            }
+            """
+
+        headers = {
+            'Content-Type': 'application/sparql-update'
+        }
 
         try:
-            response = requests.delete(
-                self.data_endpoint,
-                params=params,
+            print('Realizando a requisição da limpeza do dataset')
+            response = requests.post(  # ← MUDOU DE delete PARA post
+                update_endpoint,  # ← MUDOU DE data_endpoint PARA update_endpoint
+                data=sparql_update.encode('utf-8'),  # ← ADICIONOU o comando SPARQL
+                headers=headers,
                 auth=self.auth
             )
 
             if response.status_code in [200, 204]:
+                if graph_uri:
+                    msg = f"Grafo <{graph_uri}> limpo com sucesso"
+                else:
+                    msg = "Dataset (grafo padrão) limpo com sucesso"
                 return {
                     "success": True,
-                    "message": "Dataset limpo com sucesso"
+                    "message": msg
                 }
             else:
-                # print('Caiu aqui')
-                # print(response.text)
                 return {
                     "success": False,
                     "message": f"Erro ao limpar dataset: {response.text}",
@@ -170,19 +195,20 @@ class TurtleLoader:
                 "traceback": traceback.format_exc()
             }
 
-
 # Exemplo de uso
 if __name__ == "__main__":
     # Inicializa o loader
     loader = TurtleLoader(dataset='airdata')
 
-    result = loader.clear_dataset()
-    print(result['message'])
-    sys.exit()
+    # result = loader.clear_dataset()
+    # print(result['message'])
+    # print(result['status_code'])
+    # print(result['traceback'])
+
     # Exemplo 1: Carregar de arquivo
     loader.load_from_directory(r'turtles')
     sys.exit()
-    result = loader.load_from_file(r"C:\Coding\AirData\jena-test\ontology_airdata.ttl")
+    # result = loader.load_from_file(r"C:\Coding\AirData\jena-test\ontology_airdata.ttl")
     print(result)
 
     # Exemplo 2: Carregar string diretamente
