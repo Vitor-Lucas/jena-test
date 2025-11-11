@@ -9,7 +9,7 @@ class SparqlQuery:
     Classe para executar consultas SPARQL no Apache Jena Fuseki
     """
 
-    def __init__(self, fuseki_url: str = "http://localhost:3030", dataset: str = "ds",
+    def __init__(self, fuseki_url: str = "http://localhost:3030", dataset: str = "airdata",
                  auth_user: str = "admin", auth_pass: str = "admin123"):
         """
         Inicializa o executor de queries.
@@ -23,7 +23,12 @@ class SparqlQuery:
         self.query_endpoint = f"{self.fuseki_url}/{dataset}/query"
         self.update_endpoint = f"{self.fuseki_url}/{dataset}/update"
         self.auth = HTTPBasicAuth(auth_user, auth_pass) if auth_user and auth_pass else None
-
+        print('Instância de SparqlQuery criada!')
+        print('Informações do objeto:')
+        print(f'{self.fuseki_url=}')
+        print(f'{self.dataset=}')
+        print(f'{self.query_endpoint=}')
+        print(f'{self.update_endpoint=}')
 
     def select(self, query: str) -> Dict[str, Any]:
         """
@@ -44,6 +49,8 @@ class SparqlQuery:
         }
 
         try:
+            print('Fazendo a operação SELECT')
+            print(f'Query utilizada:\n{query}')
             response = requests.get(
                 self.query_endpoint,
                 params=params,
@@ -99,6 +106,8 @@ class SparqlQuery:
         }
 
         try:
+            print('Fazendo a operação ASK')
+            print(f'Query utilizada:\n{query}')
             response = requests.get(
                 self.query_endpoint,
                 params=params,
@@ -146,6 +155,8 @@ class SparqlQuery:
         }
 
         try:
+            print('Fazendo a operação CONSTRUCT')
+            print(f'Query utilizada:\n{query}')
             response = requests.get(
                 self.query_endpoint,
                 params=params,
@@ -186,6 +197,8 @@ class SparqlQuery:
         }
 
         try:
+            print('Fazendo a operação UPDATE')
+            print(f'Query utilizada:\n{query}')
             response = requests.post(
                 self.update_endpoint,
                 data=query.encode('utf-8'),
@@ -231,6 +244,9 @@ class SparqlQuery:
         {limit_clause}
         """
 
+        print('Obtendo todas as triplas')
+        print(f'Query utilizada:\n{query}')
+
         return self.select(query)
 
 
@@ -239,47 +255,47 @@ if __name__ == "__main__":
     # Inicializa o executor
     sparql = SparqlQuery()
 
-    # Exemplo 1: SELECT simples
-    query1 = """
-    PREFIX ex: <http://example.org/>
-
-    SELECT ?pessoa ?nome ?idade
-    WHERE {
-        ?pessoa a ex:Pessoa ;
-                ex:nome ?nome ;
-                ex:idade ?idade .
-    }
-    """
-    result = sparql.select(query1)
-    if result['success']:
-        print(f"Encontradas {result['count']} pessoas:")
-        for row in result['results']:
-            print(f"- {row['nome']['value']}, {row['idade']['value']} anos")
-
-    # Exemplo 2: ASK - verificar se existe algo
-    query2 = """
-    PREFIX ex: <http://example.org/>
-
-    ASK {
-        ?pessoa ex:nome "João Silva" .
-    }
-    """
-    result = sparql.ask(query2)
-    print(f"João Silva existe? {result['result']}")
-
-    # Exemplo 3: UPDATE - inserir dados
-    update_query = """
-    PREFIX ex: <http://example.org/>
-
-    INSERT DATA {
-        ex:pessoa2 a ex:Pessoa ;
-                   ex:nome "Maria Santos" ;
-                   ex:idade 25 .
-    }
-    """
-    result = sparql.update(update_query)
-    print(result['message'])
+    # # Exemplo 1: SELECT simples
+    # query1 = """
+    # PREFIX ex: <http://example.org/>
+    #
+    # SELECT ?pessoa ?nome ?idade
+    # WHERE {
+    #     ?pessoa a ex:Pessoa ;
+    #             ex:nome ?nome ;
+    #             ex:idade ?idade .
+    # }
+    # """
+    # result = sparql.select(query1)
+    # if result['success']:
+    #     print(f"Encontradas {result['count']} pessoas:")
+    #     for row in result['results']:
+    #         print(f"- {row['nome']['value']}, {row['idade']['value']} anos")
+    #
+    # # Exemplo 2: ASK - verificar se existe algo
+    # query2 = """
+    # PREFIX ex: <http://example.org/>
+    #
+    # ASK {
+    #     ?pessoa ex:nome "João Silva" .
+    # }
+    # """
+    # result = sparql.ask(query2)
+    # print(f"João Silva existe? {result['result']}")
+    #
+    # # Exemplo 3: UPDATE - inserir dados
+    # update_query = """
+    # PREFIX ex: <http://example.org/>
+    #
+    # INSERT DATA {
+    #     ex:pessoa2 a ex:Pessoa ;
+    #                ex:nome "Maria Santos" ;
+    #                ex:idade 25 .
+    # }
+    # """
+    # result = sparql.update(update_query)
+    # print(result['message'])
 
     # Exemplo 4: Ver todas as triplas (limitado a 10)
-    result = sparql.get_all_triples(limit=10)
+    result = sparql.get_all_triples()
     print(f"\nTotal de triplas recuperadas: {result['count']}")

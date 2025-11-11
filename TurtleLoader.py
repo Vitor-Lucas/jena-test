@@ -5,13 +5,14 @@ import requests
 from typing import Optional
 from requests.auth import HTTPBasicAuth
 
+
 class TurtleLoader:
     """
     Classe para carregar arquivos Turtle (.ttl) no Apache Jena Fuseki
     """
 
-    def __init__(self, fuseki_url: str = "http://localhost:3030", dataset: str = "ds",
-                 auth_user: str = "admin", auth_pass: str = "admin123"):
+    def __init__(self, fuseki_url: str = "http://localhost:3030", dataset: str = "airdata",
+                 auth_user: str = "admin", auth_pass: str = "admin123", verbose: bool=True):
         """
         Inicializa o loader com a URL do Fuseki e o dataset.
 
@@ -23,18 +24,52 @@ class TurtleLoader:
         self.dataset = dataset
         self.data_endpoint = f"{self.fuseki_url}/{dataset}/data"
         self.auth = HTTPBasicAuth(auth_user, auth_pass) if auth_user and auth_pass else None
-        # print(self.auth.username)
-        # print(self.auth.password)
+        self.verbose = verbose
+        print('Instância da classe TurtleLoader criada!')
+        print('informações do objeto:')
+        print(f'{self.fuseki_url=}')
+        print(f'{self.dataset=}')
+        print(f'{self.data_endpoint=}')
+        print(f'{self.verbose=}')
+
+    def print(self, *args, **kwargs):
+        if self.verbose:
+            print(*args, **kwargs)
 
     def load_from_directory(self, dir_path: str, graph_uri: Optional[str] = None) -> dict:
-        print(f'Arquivos serão carregados pelo diretório {dir_path}')
+        self.print(f'Arquivos serão carregados pelo diretório {dir_path}')
+
+        # estrutura "total" de result = {
+        #     'success': bool,
+        #     'message': str,
+        #     'status_code': int,
+        #     'error': str,
+        #     'traceback': str
+        # }
+        total_result = {
+            'success': [],
+            'message': [],
+            'status_code': [],
+            'error': [],
+            'traceback': []
+        }
         for dir, _, file_names in os.walk(dir_path):
             for file_name in file_names:
                 file_path = os.path.join(dir, file_name)
-                print(f'Arquivo selecionado: {file_path}')
+                self.print(f'Arquivo selecionado: {file_path}')
                 result = self.load_from_file(file_path=file_path, graph_uri=graph_uri)
-                print(result)
+                self.print(result)
 
+                # Armazena os resultados de todas as inserções
+                possible_fields = ['succes', 'message', 'status_code', 'error', 'traceback']
+                for field in possible_fields:
+                    if field in result.keys():
+                        total_result[field].append(result[field])
+                    else:
+                        total_result[field].append(None)
+
+        self.print('Arquivos carregados com sucesso, retornando resultados')
+        return total_result
     def load_from_file(self, file_path: str, graph_uri: Optional[str] = None) -> dict:
         """
         Carrega um arquivo .ttl no Fuseki.
@@ -49,7 +84,7 @@ class TurtleLoader:
         try:
             with open(file_path, 'r', encoding='utf-8') as file:
                 ttl_content = file.read()
-                print('Arquivo lido!')
+                self.print('Arquivo lido!')
             return self.load_from_string(ttl_content, graph_uri)
 
         except FileNotFoundError:
@@ -74,7 +109,7 @@ class TurtleLoader:
         Returns:
             dict com status da operação
         """
-        print(f'String lida {ttl_content[:300]}')
+        self.print(f'String lida {ttl_content[:300]}')
         headers = {
             'Content-Type': 'text/turtle; charset=utf-8'
         }
@@ -85,7 +120,7 @@ class TurtleLoader:
             params['graph'] = graph_uri
 
         try:
-            print('Fazendo a requisição!')
+            self.print('Fazendo a requisição!')
             response = requests.post(
                 self.data_endpoint,
                 data=ttl_content.encode('utf-8'),
@@ -95,14 +130,14 @@ class TurtleLoader:
             )
 
             if response.status_code in [200, 201, 204]:
-                print('Dados carregados com sucesso!')
+                self.print('Dados carregados com sucesso!')
                 return {
                     "success": True,
                     "message": "Dados carregados com sucesso",
                     "status_code": response.status_code
                 }
             else:
-                print(f'Código de resposta não positivo. Código: {response.status_code}')
+                self.print(f'Código de resposta não positivo. Código: {response.status_code}')
                 return {
                     "success": False,
                     "message": f"Erro ao carregar dados: {response.text}",
@@ -110,14 +145,14 @@ class TurtleLoader:
                 }
 
         except requests.exceptions.ConnectionError as e:
-            print('Não foi possivel conectar ao Fuseki')
+            self.print('Não foi possivel conectar ao Fuseki')
             return {
                 "success": False,
                 "message": "Não foi possível conectar ao Fuseki. Verifique se está rodando.",
                 "error": str(e)
             }
         except Exception as e:
-            print('Erro inesperado!!')
+            self.print('Erro inesperado!!')
             import traceback
             return {
                 "success": False,
@@ -142,6 +177,7 @@ class TurtleLoader:
         # Construir a query SPARQL DELETE apropriada
         if graph_uri:
             # Limpar um grafo nomeado específico
+            self.print('Limpando um grafo especifico')
             sparql_update = f"""
             DELETE WHERE {{
                 GRAPH <{graph_uri}> {{
@@ -162,10 +198,11 @@ class TurtleLoader:
         }
 
         try:
-            print('Realizando a requisição da limpeza do dataset')
-            response = requests.post(  # ← MUDOU DE delete PARA post
-                update_endpoint,  # ← MUDOU DE data_endpoint PARA update_endpoint
-                data=sparql_update.encode('utf-8'),  # ← ADICIONOU o comando SPARQL
+            self.print('Realizando a requisição da limpeza do dataset')
+            self.print(f'Query:\n{sparql_update}')
+            response = requests.post(
+                update_endpoint,
+                data=sparql_update.encode('utf-8'),
                 headers=headers,
                 auth=self.auth
             )
@@ -175,11 +212,13 @@ class TurtleLoader:
                     msg = f"Grafo <{graph_uri}> limpo com sucesso"
                 else:
                     msg = "Dataset (grafo padrão) limpo com sucesso"
+                self.print(f'{msg}')
                 return {
                     "success": True,
                     "message": msg
                 }
             else:
+                self.print(f"Erro ao limpar dataset: {response.text}")
                 return {
                     "success": False,
                     "message": f"Erro ao limpar dataset: {response.text}",
@@ -190,21 +229,20 @@ class TurtleLoader:
             import traceback
             return {
                 "success": False,
-                "message": f"Erro ao limpar dataset: {str(e)}",
+                "message": f"Erro ao limpar dataset ({type(e)}): {str(e)}",
                 "error": str(e),
                 "traceback": traceback.format_exc()
             }
+
 
 # Exemplo de uso
 if __name__ == "__main__":
     # Inicializa o loader
     loader = TurtleLoader(dataset='airdata')
 
-    # result = loader.clear_dataset()
-    # print(result['message'])
-    # print(result['status_code'])
-    # print(result['traceback'])
-
+    result = loader.clear_dataset()
+    print(result)
+    sys.exit()
     # Exemplo 1: Carregar de arquivo
     loader.load_from_directory(r'turtles')
     sys.exit()
