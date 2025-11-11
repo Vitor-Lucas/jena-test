@@ -1,3 +1,6 @@
+import os
+import sys
+
 import requests
 from typing import Optional
 from requests.auth import HTTPBasicAuth
@@ -23,6 +26,15 @@ class TurtleLoader:
         # print(self.auth.username)
         # print(self.auth.password)
 
+    def load_from_directory(self, dir_path: str, graph_uri: Optional[str] = None) -> dict:
+        print(f'Arquivos serão carregados pelo diretório {dir_path}')
+        for dir, _, file_names in os.walk(dir_path):
+            for file_name in file_names:
+                file_path = os.path.join(dir, file_name)
+                print(f'Arquivo selecionado: {file_path}')
+                result = self.load_from_file(file_path=file_path, graph_uri=graph_uri)
+                print(result)
+
     def load_from_file(self, file_path: str, graph_uri: Optional[str] = None) -> dict:
         """
         Carrega um arquivo .ttl no Fuseki.
@@ -37,7 +49,7 @@ class TurtleLoader:
         try:
             with open(file_path, 'r', encoding='utf-8') as file:
                 ttl_content = file.read()
-
+                print('Arquivo lido!')
             return self.load_from_string(ttl_content, graph_uri)
 
         except FileNotFoundError:
@@ -62,6 +74,7 @@ class TurtleLoader:
         Returns:
             dict com status da operação
         """
+        print(f'String lida {ttl_content[:300]}')
         headers = {
             'Content-Type': 'text/turtle; charset=utf-8'
         }
@@ -72,6 +85,7 @@ class TurtleLoader:
             params['graph'] = graph_uri
 
         try:
+            print('Fazendo a requisição!')
             response = requests.post(
                 self.data_endpoint,
                 data=ttl_content.encode('utf-8'),
@@ -81,12 +95,14 @@ class TurtleLoader:
             )
 
             if response.status_code in [200, 201, 204]:
+                print('Dados carregados com sucesso!')
                 return {
                     "success": True,
                     "message": "Dados carregados com sucesso",
                     "status_code": response.status_code
                 }
             else:
+                print(f'Código de resposta não positivo. Código: {response.status_code}')
                 return {
                     "success": False,
                     "message": f"Erro ao carregar dados: {response.text}",
@@ -94,12 +110,14 @@ class TurtleLoader:
                 }
 
         except requests.exceptions.ConnectionError as e:
+            print('Não foi possivel conectar ao Fuseki')
             return {
                 "success": False,
                 "message": "Não foi possível conectar ao Fuseki. Verifique se está rodando.",
                 "error": str(e)
             }
         except Exception as e:
+            print('Erro inesperado!!')
             import traceback
             return {
                 "success": False,
@@ -156,24 +174,29 @@ class TurtleLoader:
 # Exemplo de uso
 if __name__ == "__main__":
     # Inicializa o loader
-    loader = TurtleLoader()
+    loader = TurtleLoader(dataset='airdata')
 
+    result = loader.clear_dataset()
+    print(result['message'])
+    sys.exit()
     # Exemplo 1: Carregar de arquivo
-    result = loader.load_from_file("minha_ontologia.ttl")
+    loader.load_from_directory(r'turtles')
+    sys.exit()
+    result = loader.load_from_file(r"C:\Coding\AirData\jena-test\ontology_airdata.ttl")
     print(result)
 
     # Exemplo 2: Carregar string diretamente
-    ttl_data = """
-    @prefix ex: <http://example.org/> .
-    @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
-
-    ex:pessoa1 rdf:type ex:Pessoa ;
-               ex:nome "João Silva" ;
-               ex:idade 30 .
-    """
-    result = loader.load_from_string(ttl_data)
-    print(result)
-
-    # Exemplo 3: Carregar em grafo nomeado
-    result = loader.load_from_file("dados.ttl", graph_uri="http://example.org/graph1")
-    print(result)
+    # ttl_data = """
+    # @prefix ex: <http://example.org/> .
+    # @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+    #
+    # ex:pessoa1 rdf:type ex:Pessoa ;
+    #            ex:nome "João Silva" ;
+    #            ex:idade 30 .
+    # """
+    # result = loader.load_from_string(ttl_data)
+    # print(result)
+    #
+    # # Exemplo 3: Carregar em grafo nomeado
+    # result = loader.load_from_file("dados.ttl", graph_uri="http://example.org/graph1")
+    # print(result)
