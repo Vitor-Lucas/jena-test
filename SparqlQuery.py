@@ -250,28 +250,148 @@ class SparqlQuery:
         return self.select(query)
 
 
+def teste_select_1(obj: SparqlQuery):
+    codigo_icao = "SBGR"
+
+    print('-'*60)
+    print(f'SELECT PARA PEGAR A CONDIÇÃO METEOROLÓGICA NO AEROPORTO DE CÓDIGO {codigo_icao}')
+    print('-'*60)
+    query1 = f"""
+    PREFIX : <http://airdata.org/ontology#>
+    PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+    SELECT ?metar ?hora ?ventoKt ?vis ?qnh
+    WHERE {{
+      ?metar a :AerodromeCondition ;
+             :WeatherCondition-aerodrome :Aerodrome_{codigo_icao} ;
+             :WeatherCondition-time ?t ;
+             :WeatherCondition-visibility ?v ;
+             :WeatherCondition-wind ?w ;
+             :AerodromeCondition-qnhHpa ?qnh .
+
+      ?t :DateTime-value ?hora .
+      ?v :Visibility-prevailingVisibilityMeters ?vis .
+      ?w :Wind-windSpeedKt ?ventoKt .
+
+      FILTER(STRSTARTS(STR(?hora), "2025-07-01T10"))
+    }}
+    ORDER BY ?hora
+        """
+
+    result = obj.select(query1)
+    print('Resultados')
+    for res in result['results']:
+        for key, value in res.items():
+            print(f'{key}: {value}')
+        print('\n')
+
+
+def teste_select_2(obj: SparqlQuery):
+    print('-'*60)
+    print('SELECT PARA PEGAR TODOS OS VOOS E CONDIÇÕES METEOROLÓGICAS COM HORÁRIOS SIMILARES')
+    print('-'*60)
+    query = f"""
+PREFIX : <http://airdata.org/ontology#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+SELECT ?flight ?horaVoo ?horaMetar ?ventoKt ?qnh ?vis
+WHERE {{
+  ?flight a :ArrivalOperations ;
+          :ArrivalOperations-landing ?landing .
+  ?landing :Landing-time ?tVoo .
+  ?tVoo :DateTime-value ?horaVoo .
+  ?flight :Flight-destinationAerodrome :Aerodrome_SBAF .
+  
+  ?metar a :AerodromeCondition ;
+         :WeatherCondition-aerodrome :Aerodrome_SBAF ;
+         :WeatherCondition-time ?tMetar ;
+         :WeatherCondition-wind ?w ;
+         :WeatherCondition-visibility ?v ;
+         :AerodromeCondition-qnhHpa ?qnh .
+  ?tMetar :DateTime-value ?horaMetar .
+  ?w :Wind-windSpeedKt ?ventoKt .
+  ?v :Visibility-prevailingVisibilityMeters ?vis .
+  
+  FILTER(SUBSTR(STR(?horaVoo), 1, 13) = SUBSTR(STR(?horaMetar), 1, 13))
+}}
+ORDER BY ?horaVoo
+
+            """
+
+    result = obj.select(query)
+    print('Resultados')
+    print(result)
+    for res in result['results']:
+        for key, value in res.items():
+            print(f'{key}: {value}')
+        print('\n')
+
+
+def teste_select_3(obj: SparqlQuery):
+    print('-'*80)
+    print('SELECT PARA PEGAR QUANTOS VOOS OCORREU EM UM DIA')
+    print('-'*80)
+    query = f"""
+PREFIX : <http://airdata.org/ontology#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+SELECT ?data (COUNT(?flight) AS ?totalVoos)
+WHERE {{
+  ?flight a :ArrivalOperations ;
+          :ArrivalOperations-landing ?landing .
+  ?landing :Landing-time ?t .
+  ?t :DateTime-value ?hora .
+
+  BIND(SUBSTR(STR(?hora), 1, 10) AS ?data)
+}}
+GROUP BY ?data
+ORDER BY ?data
+            """
+
+    result = obj.select(query)
+    print('Primeiros 10 resultados')
+    for res in result['results'][:10]:
+        for key, value in res.items():
+            print(f'{key}: {value}')
+        # print('\n')
+
+def teste_select_4(obj: SparqlQuery):
+    print('-'*80)
+    print('SELECT PARA PEGAR TODOS OS AERODROMOS NO BANCO')
+    print('-'*80)
+    query = f"""
+PREFIX ad: <http://airdata.org/ontology#>
+
+SELECT DISTINCT ?aerodromo
+WHERE {{
+  ?metar a ad:AerodromeCondition ;
+         ad:WeatherCondition-aerodrome ?aerodromo .
+}}
+ORDER BY ?aerodromo
+            """
+
+    result = obj.select(query)
+    print('Primeiros 10 resultados')
+    for res in result['results'][:10]:
+        for key, value in res.items():
+            print(f'{key}: {value}')
+        # print('\n')
+
+
 # Exemplo de uso
 if __name__ == "__main__":
     # Inicializa o executor
     sparql = SparqlQuery()
 
-    # # Exemplo 1: SELECT simples
-    # query1 = """
-    # PREFIX ex: <http://example.org/>
-    #
-    # SELECT ?pessoa ?nome ?idade
-    # WHERE {
-    #     ?pessoa a ex:Pessoa ;
-    #             ex:nome ?nome ;
-    #             ex:idade ?idade .
-    # }
-    # """
-    # result = sparql.select(query1)
-    # if result['success']:
-    #     print(f"Encontradas {result['count']} pessoas:")
-    #     for row in result['results']:
-    #         print(f"- {row['nome']['value']}, {row['idade']['value']} anos")
-    #
+    # Exemplo 1: Condições meteorológicas (METAR) no mesmo horário e aeroporto
+    teste_select_1(sparql)
+
+    # teste_select_2(sparql)
+
+    teste_select_3(sparql)
+
+    teste_select_4(sparql)
+
     # # Exemplo 2: ASK - verificar se existe algo
     # query2 = """
     # PREFIX ex: <http://example.org/>
@@ -297,5 +417,5 @@ if __name__ == "__main__":
     # print(result['message'])
 
     # Exemplo 4: Ver todas as triplas (limitado a 10)
-    result = sparql.get_all_triples()
-    print(f"\nTotal de triplas recuperadas: {result['count']}")
+    # result = sparql.get_all_triples()
+    # print(f"\nTotal de triplas recuperadas: {result['count']}")
